@@ -1,0 +1,64 @@
+﻿@using Entities
+@using Business
+
+@inject NavigationManager NavManager
+
+<EditForm Model="@oStorage">
+    <div class="form-group">
+        <label>Warehouse</label>
+        <InputSelect @bind-Value="oStorage.WarehouseId" class="form-control">
+            <option value="">Select Storage...</option>
+            @foreach (var warehouse in warehouses)
+            {
+                <option value="@warehouse.WarehouseId">@warehouse.WarehouseName</option>
+            }
+        </InputSelect>
+    </div>
+    <div class="form-group">
+        <label>Product</label>
+        <InputSelect @bind-Value="@oStorage.ProductId" class="form-control">
+            <option value="">Select Product...</option>
+            @foreach (var product in products)
+            {
+                <option value="@product.ProductId">@product.ProductName</option>
+            }
+        </InputSelect>
+    </div>
+    <input type="button" value="Save Storage" @onclick="SaveStorage" class="btn btn-primary" />
+</EditForm>
+<div class="alert @alertType mt-3">
+    <strong>@message</strong>
+</div>
+
+@code {
+    StorageEntity oStorage = new StorageEntity();
+    List<WarehouseEntity> warehouses = new List<WarehouseEntity>();
+    List<ProductEntity> products = new List<ProductEntity>();
+
+    string message;
+    string alertType;
+
+    protected override async Task OnInitializedAsync()
+    {
+        warehouses = B_Warehouse.WarehousesList();
+        products = B_Product.ProductsList();
+    }
+
+    private void SaveStorage()
+    {
+        oStorage.StorageId = $"{oStorage.WarehouseId}-{oStorage.ProductId}";
+
+        if (!B_Storage.IsProductInWarehouse(oStorage.StorageId))
+        {
+            oStorage.LastUpdate = DateTime.Now;
+            B_Storage.CreateStorage(oStorage);
+            message = "Product saved";
+            alertType = "alert-success";
+        }
+        else
+        {
+            message = "The product already exists";
+            alertType = "alert-danger";
+        }
+    }
+}

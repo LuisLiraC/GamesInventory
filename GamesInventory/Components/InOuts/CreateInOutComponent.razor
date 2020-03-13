@@ -1,0 +1,108 @@
+﻿@using Entities
+@using Business
+
+<div class="form-group">
+    <label>Warehouse</label>
+    <select class="form-control" @onchange="OnChangeWarehouse">
+        <option selected value="" disabled>Select a warehouse..</option>
+        @foreach (var warehouse in warehouses)
+        {
+            <option value="@warehouse.WarehouseId">@warehouse.WarehouseName</option>
+        }
+    </select>
+</div>
+<hr />
+<EditForm Model="@oInOut">
+    <div class="form-group">
+        <label>Products</label>
+        <InputSelect class="form-control" @bind-Value="@oInOut.StorageId">
+            <option selected value="" disabled>Select product..</option>
+            @foreach (var storage in storages)
+            {
+                <option value="@storage.StorageId">@storage.Product.ProductName</option>
+            }
+        </InputSelect>
+    </div>
+    <div class="form-group">
+        <label>Quantity</label>
+        <InputNumber class="form-control" @bind-Value="oInOut.Quantity" />
+    </div>
+    <div class="form-check">
+        <InputCheckbox class="form-check-input" @bind-Value="oInOut.IsInput" />
+        <label class="form-check-label">Is input?</label>
+    </div>
+    <input type="button" value="@buttonValue" class="btn btn-success mt-3" @onclick="@SaveInOut" />
+</EditForm>
+<div class="alert @alertType mt-3">
+    <strong>@message</strong>
+</div>
+
+@code {
+    InOutEntity oInOut = new InOutEntity();
+    List<WarehouseEntity> warehouses = new List<WarehouseEntity>();
+    List<StorageEntity> storages = new List<StorageEntity>();
+    ProductEntity oProduct = new ProductEntity();
+    StorageEntity oStorage = new StorageEntity();
+    string message;
+    string alertType;
+
+    string buttonValue => oInOut.IsInput ? "Registry input" : "Registry output";
+
+    protected override async Task OnInitializedAsync()
+    {
+        warehouses = B_Warehouse.WarehousesList();
+    }
+
+    private void OnChangeWarehouse(ChangeEventArgs e)
+    {
+        var warehouseId = e.Value.ToString();
+        storages = B_Storage.StorageProductByWarehouse(warehouseId);
+    }
+
+    private void SaveInOut()
+    {
+        oStorage = storages.LastOrDefault(s => s.StorageId == oInOut.StorageId);
+        oProduct = oStorage.Product;
+
+        if (oInOut.IsInput)
+        {
+            oStorage.PartialQuantity = oStorage.PartialQuantity + oInOut.Quantity;
+            B_Storage.UpdateStorage(oStorage);
+
+            oProduct.TotalQuantity = oProduct.TotalQuantity + oInOut.Quantity;
+            B_Product.UpdateProduct(oProduct);
+
+            message = $"Product {oProduct.ProductName} updated successfully";
+            alertType = "alert-success";
+        }
+        else
+        {
+            if (IsBiggerThanZero(oInOut.Quantity, oStorage.PartialQuantity))
+            {
+                oStorage.PartialQuantity = oStorage.PartialQuantity - oInOut.Quantity;
+                B_Storage.UpdateStorage(oStorage);
+
+                oProduct.TotalQuantity = oProduct.TotalQuantity - oInOut.Quantity;
+                B_Product.UpdateProduct(oProduct);
+
+                message = $"Product {oProduct.ProductName} updated successfully";
+                alertType = "alert-success";
+            }
+            else
+            {
+                message = "Not enough products";
+                alertType = "alert-danger";
+            }
+        }
+    }
+
+    private bool IsBiggerThanZero(int quantity, int storageQuantity)
+    {
+        if (storageQuantity >= quantity)
+        {
+            return true;
+        }
+
+        return false;
+    }
+}
